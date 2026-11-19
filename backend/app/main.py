@@ -39,6 +39,10 @@ try:
     async def favicon():
         return Response(status_code=204)
 
+    @app.get("/debug-trace", response_class=Response)
+    async def debug_trace():
+        return Response(content="APP_LOADED_SUCCESSFULLY", media_type="text/plain")
+
     @app.get("/", summary="Root API Information")
     @app.get("/api/index", summary="Root API Information", include_in_schema=False)
     async def root():
@@ -63,6 +67,10 @@ except Exception as exc:
     print("CRITICAL STARTUP ERROR IN APP.MAIN:", err_tb, file=sys.stderr)
 
     app = FastAPI(title="Rida Optical API - Startup Diagnostics")
+
+    @app.get("/debug-trace")
+    async def debug_trace_fallback():
+        return Response(content=f"STARTUP EXCEPTION:\n{err_tb}", media_type="text/plain", status_code=200)
 
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon_fallback():
