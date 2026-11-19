@@ -21,6 +21,7 @@ except Exception as exc:
     async def favicon():
         return Response(status_code=204)
 
+    @app.api_route("/", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
     @app.api_route("/{path_name:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
     async def diagnostics(path_name: str = ""):
         return JSONResponse(

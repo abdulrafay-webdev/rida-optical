@@ -1,3 +1,6 @@
+from pathlib import Path
+import re
+import tempfile
 from typing import Generator
 from sqlmodel import create_engine, Session, SQLModel
 from app.core.config import settings
@@ -7,13 +10,11 @@ def get_database_url() -> str:
     url = settings.DATABASE_URL
     if not url:
         # On Vercel serverless / read-only filesystem, use /tmp or memory
-        import tempfile
         tmp_db = Path(tempfile.gettempdir()) / "rida_optical_dev.db"
         return f"sqlite:///{tmp_db}"
 
     # Strip channel_binding if present (causes issues with connection poolers & older libpq on serverless)
     if "channel_binding=" in url:
-        import re
         url = re.sub(r"[?&]channel_binding=[^&]+", "", url)
         if "?" not in url and "&" in url:
             url = url.replace("&", "?", 1)
