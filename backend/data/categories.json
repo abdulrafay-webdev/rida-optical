@@ -1,0 +1,245 @@
+[
+  {
+    "id": 15,
+    "taxonomy_id": 15,
+    "name": "AL Mahash",
+    "slug": "al-mahash",
+    "parent_id": null,
+    "product_count": 0,
+    "thumbnail_id": 4769
+  },
+  {
+    "id": 131,
+    "taxonomy_id": 131,
+    "name": "Contact Lenses",
+    "slug": "contatc-lenses",
+    "parent_id": null,
+    "product_count": 0,
+    "thumbnail_id": 5026
+  },
+  {
+    "id": 133,
+    "taxonomy_id": 133,
+    "name": "Eye Glasses",
+    "slug": "eye-glasses",
+    "parent_id": null,
+    "product_count": 16,
+    "thumbnail_id": 5027
+  },
+  {
+    "id": 167,
+    "taxonomy_id": 167,
+    "name": "Lenses (for glasses)",
+    "slug": "lenses-for-glasses",
+    "parent_id": null,
+    "product_count": 0,
+    "thumbnail_id": 5025
+  },
+  {
+    "id": 176,
+    "taxonomy_id": 176,
+    "name": "Screen Glass",
+    "slug": "screen-glass",
+    "parent_id": null,
+    "product_count": 1,
+    "thumbnail_id": 5028
+  },
+  {
+    "id": 132,
+    "taxonomy_id": 132,
+    "name": "SunGlasses",
+    "slug": "sunglasses",
+    "parent_id": null,
+    "product_count": 1,
+    "thumbnail_id": 5031
+  },
+  {
+    "id": 177,
+    "taxonomy_id": 177,
+    "name": "Transition Glaass",
+    "slug": "transition-glass",
+    "parent_id": null,
+    "product_count": 0,
+    "thumbnail_id": 5030
+  },
+  {
+    "id": 155,
+    "taxonomy_id": 155,
+    "name": "Coat",
+    "slug": "coat",
+    "parent_id": 15,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 154,
+    "taxonomy_id": 154,
+    "name": "Prince Coat",
+    "slug": "prince-coat",
+    "parent_id": 15,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 151,
+    "taxonomy_id": 151,
+    "name": "Waistcoat Colar casual",
+    "slug": "waistcoat-colar-casual",
+    "parent_id": 15,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 152,
+    "taxonomy_id": 152,
+    "name": "Waistcoat O shape",
+    "slug": "waistcoat-o-shape",
+    "parent_id": 15,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 153,
+    "taxonomy_id": 153,
+    "name": "Waistcoat V shape",
+    "slug": "waistcoat-v-shape",
+    "parent_id": 15,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 148,
+    "taxonomy_id": 148,
+    "name": "Color Brand",
+    "slug": "color-brand",
+    "parent_id": 131,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 145,
+    "taxonomy_id": 145,
+    "name": "Daily wear",
+    "slug": "daily-wear",
+    "parent_id": 131,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 150,
+    "taxonomy_id": 150,
+    "name": "Lens Kit",
+    "slug": "lens-kit",
+    "parent_id": 131,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 147,
+    "taxonomy_id": 147,
+    "name": "Party Wear",
+    "slug": "party-wear",
+    "parent_id": 131,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 149,
+    "taxonomy_id": 149,
+    "name": "Solution",
+    "slug": "solution",
+    "parent_id": 131,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 146,
+    "taxonomy_id": 146,
+    "name": "Standard Wear",
+    "slug": "standard-wear",
+    "parent_id": 131,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 144,
+    "taxonomy_id": 144,
+    "name": "Fashion Glasses",
+    "slug": "fashion-glasses",
+    "parent_id": 132,
+    "product_count": 2,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 142,
+    "taxonomy_id": 142,
+    "name": "Men's Sunglasses",
+    "slug": "mens-sunglasses",
+    "parent_id": 132,
+    "product_count": 1,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 162,
+    "taxonomy_id": 162,
+    "name": "featured",
+    "slug": "featured",
+    "parent_id": 132,
+    "product_count": 17,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 143,
+    "taxonomy_id": 143,
+    "name": "women's Sunglasses",
+    "slug": "womens-sunglasses",
+    "parent_id": 132,
+    "product_count": 0,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 139,
+    "taxonomy_id": 139,
+    "name": "Kid's Eye Glasses",
+    "slug": "kids-eye-glasses",
+    "parent_id": 133,
+    "product_count": 3,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 137,
+    "taxonomy_id": 137,
+    "name": "Men's Eye Glasses",
+    "slug": "mens-eye-glasses",
+    "parent_id": 133,
+    "product_count": 10,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 141,
+    "taxonomy_id": 141,
+    "name": "Reading Eye Glasses",
+    "slug": "reading-eye-glasses",
+    "parent_id": 133,
+    "product_count": 1,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 140,
+    "taxonomy_id": 140,
+    "name": "Trending Eye Glasses",
+    "slug": "trending-eye-glasses",
+    "parent_id": 133,
+    "product_count": 7,
+    "thumbnail_id": 0
+  },
+  {
+    "id": 138,
+    "taxonomy_id": 138,
+    "name": "Women's Eye Glasses",
+    "slug": "womens-eye-glasses",
+    "parent_id": 133,
+    "product_count": 5,
+    "thumbnail_id": 0
+  }
+]

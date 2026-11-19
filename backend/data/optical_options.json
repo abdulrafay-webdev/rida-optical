@@ -1,0 +1,189 @@
+{
+  "engine_name": "Rida Optical Custom Lens Selector",
+  "version": "1.0",
+  "currency": "PKR",
+  "important_notice": {
+    "title": "Important Note:",
+    "message": "If your prescription has a high cylinder (above ±2.00) or requires bifocal/progressive lenses, please contact us via WhatsApp for a customized quote. For single vision glasses, simply follow the steps below."
+  },
+  "step_1_usage_types": [
+    {
+      "id": "single-vision",
+      "name": "Single Vision",
+      "slug": "single-vision",
+      "description": "Standard single vision distance or reading lenses",
+      "price_modifier_pkr": 0.0,
+      "is_default": true
+    },
+    {
+      "id": "bifocal-round",
+      "name": "Bifocal Round Segment",
+      "slug": "bifocal-round-segment",
+      "description": "Dual focus distance and reading with round segment",
+      "price_modifier_pkr": 0.0,
+      "is_default": false
+    },
+    {
+      "id": "bifocal-d",
+      "name": "Bifocal D Segment",
+      "slug": "bifocal-d-segment",
+      "description": "Dual focus distance and reading with flat-top D segment",
+      "price_modifier_pkr": 0.0,
+      "is_default": false
+    },
+    {
+      "id": "progressive",
+      "name": "Progressive",
+      "slug": "progressive",
+      "description": "Seamless multifocal lenses without visible lines",
+      "price_modifier_pkr": 0.0,
+      "is_default": false
+    }
+  ],
+  "step_2_lens_coatings": [
+    {
+      "id": "clear-standard",
+      "name": "Clear Standard",
+      "slug": "clear-standard",
+      "category": "clear",
+      "price_pkr": 1300.0,
+      "description": "Standard anti-reflective clear lens with basic scratch protection"
+    },
+    {
+      "id": "clear-premium",
+      "name": "Clear Premium",
+      "slug": "clear-premium",
+      "category": "clear",
+      "price_pkr": 1800.0,
+      "description": "High-index ultra-thin clear lens with superior clarity"
+    },
+    {
+      "id": "screen-standard",
+      "name": "Screen Standard (Blue-Cut)",
+      "slug": "screen-standerd",
+      "category": "blue_cut",
+      "price_pkr": 1700.0,
+      "description": "Digital protection blue-cut coating for screens and computers"
+    },
+    {
+      "id": "screen-premium",
+      "name": "Screen Premium (Blue-Cut)",
+      "slug": "screen-premium",
+      "category": "blue_cut",
+      "price_pkr": 2600.0,
+      "description": "Advanced anti-glare blue-light filter with hydrophobic smudge resistance"
+    },
+    {
+      "id": "transition-standard",
+      "name": "Transition Standard",
+      "slug": "transition-standerd",
+      "category": "photochromic",
+      "price_pkr": 2300.0,
+      "description": "Photochromic lenses that darken outdoors in sunlight and clear indoors"
+    },
+    {
+      "id": "transition-premium",
+      "name": "Transition Premium",
+      "slug": "transition-premium",
+      "category": "photochromic",
+      "price_pkr": 3450.0,
+      "description": "Rapid-reaction active photochromic lenses with fast fade back"
+    },
+    {
+      "id": "transition-screen-std",
+      "name": "Transition Screen Standard",
+      "slug": "transition-screen-standard",
+      "category": "hybrid",
+      "price_pkr": 2350.0,
+      "description": "Dual protection: blue-light digital filter plus photochromic sun protection"
+    },
+    {
+      "id": "transition-screen-prem",
+      "name": "Transition Screen Premium",
+      "slug": "transition-screen-premium",
+      "category": "hybrid",
+      "price_pkr": 3150.0,
+      "description": "Premium dual protection: high-index blue blocker with fast transition response"
+    },
+    {
+      "id": "drive-clear",
+      "name": "Drive Clear",
+      "slug": "drive-clear",
+      "category": "driving",
+      "price_pkr": 3000.0,
+      "description": "Specialized night and daylight driving anti-reflection coating"
+    },
+    {
+      "id": "drive-digital",
+      "name": "Drive Digital",
+      "slug": "drive-digital",
+      "category": "driving",
+      "price_pkr": 3500.0,
+      "description": "Digital driver optimization coating reducing headlight glare and eyestrain"
+    },
+    {
+      "id": "drive-transition",
+      "name": "Drive Transition",
+      "slug": "drive-transition",
+      "category": "driving",
+      "price_pkr": 3500.0,
+      "description": "Contrast-enhancing driver lenses that activate behind vehicle windshields"
+    },
+    {
+      "id": "tinted-standard",
+      "name": "Tinted Standard",
+      "slug": "tinted-standerd",
+      "category": "tinted",
+      "price_pkr": 1600.0,
+      "description": "Solid UV400 protective sunglasses tint"
+    },
+    {
+      "id": "tinted-premium",
+      "name": "Tinted Premium",
+      "slug": "tinted-premium",
+      "category": "tinted",
+      "price_pkr": 2300.0,
+      "description": "Polarized UV400 premium sunglasses tint eliminating water/road glare"
+    },
+    {
+      "id": "unbreakable-tinted",
+      "name": "Unbreakable Tinted",
+      "slug": "unbreakable-tinted",
+      "category": "polycarbonate",
+      "price_pkr": 2000.0,
+      "description": "High-impact polycarbonate tinted lenses ideal for sports and rimless frames"
+    },
+    {
+      "id": "unbreakable-transition",
+      "name": "Unbreakable Transition",
+      "slug": "unbreakable-transition",
+      "category": "polycarbonate",
+      "price_pkr": 3450.0,
+      "description": "High-impact polycarbonate photochromic lenses with shatterproof durability"
+    }
+  ],
+  "step_3_prescription_inputs": {
+    "text_input": {
+      "label": "Enter Your Prescription Here",
+      "placeholder": "e.g. SPH: OD -2.00, OS -1.75 | CYL: -0.50 | AXIS: 90",
+      "required": false
+    },
+    "file_upload": {
+      "label": "Upload a prescription:",
+      "accepted_formats": [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".pdf"
+      ],
+      "max_size_mb": 15,
+      "required": false
+    },
+    "additional_comments": {
+      "label": "Additional Comments",
+      "placeholder": "Any special requirements, pupillary distance (PD) measurements, or instructions",
+      "required": false
+    }
+  }
+}
