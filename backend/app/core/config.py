@@ -20,10 +20,32 @@ class Settings(BaseSettings):
         "https://www.ridaoptical.com",
     ]
 
+    @field_validator(
+        "DEBUG",
+        "FLAT_SHIPPING_FEE_PKR",
+        "ACCESS_TOKEN_EXPIRE_MINUTES",
+        "DATABASE_URL",
+        "IMAGEKIT_PUBLIC_KEY",
+        "IMAGEKIT_PRIVATE_KEY",
+        "ADMIN_PASSWORD",
+        mode="before",
+    )
+    def handle_empty_strings(cls, v, info):
+        if isinstance(v, str) and not v.strip():
+            return cls.model_fields[info.field_name].default
+        return v
+
     @field_validator("CORS_ORIGINS", mode="after")
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
         if isinstance(v, str):
             v_stripped = v.strip()
+            if not v_stripped:
+                return [
+                    "http://localhost:3000",
+                    "http://127.0.0.1:3000",
+                    "https://ridaoptical.com",
+                    "https://www.ridaoptical.com",
+                ]
             if v_stripped.startswith("[") and v_stripped.endswith("]"):
                 import json
                 try:
