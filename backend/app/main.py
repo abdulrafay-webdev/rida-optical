@@ -44,6 +44,7 @@ async def favicon():
 
 
 @app.get("/", summary="Root API Information")
+@app.get("/api/index", summary="Root API Information (Vercel rewrite alias)", include_in_schema=False)
 async def root():
     return {
         "service": settings.PROJECT_NAME,
