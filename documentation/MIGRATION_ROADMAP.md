@@ -190,12 +190,7 @@ flowchart TD
 ---
 
 ## Phase 14: SEO Optimization & Parity
-- **Status:** READY FOR EXECUTION (NEXT STEP)
-
----
-
-## Phase 14: SEO Optimization & Parity
-- **Status:** PENDING
+- **Status:** DEFERRED / SKIPPED FOR NOW (Per User Instruction)
 - **Objectives:**
   - Generate dynamic XML sitemaps for products, categories, and static pages.
   - Implement structured schema markup (`Product`, `BreadcrumbList`, `Store`, `Organization`).
@@ -206,10 +201,12 @@ flowchart TD
 ---
 
 ## Phase 15: Production Deployment & Cutover
-- **Status:** PENDING
+- **Status:** IN PROGRESS (ACTIVE PHASE)
 - **Objectives:**
-  - Deploy Next.js frontend to Vercel production environment.
-  - Deploy FastAPI backend to Vercel Python runtime with configured environment secrets.
-  - Configure production Neon PostgreSQL database with autoscaling and backup policies.
-  - Point domain DNS records (`ridaoptical.com`) to Vercel with zero downtime.
-  - Conduct live smoke tests and monitor error tracking (Sentry / Datadog).
+  - Initialized Git repository on `main` branch with clean initial commit (`6e1a068`).
+  - Strict `.gitignore` rules implemented to prevent any credential or backup data leakage.
+  - Configured template environment files (`backend/.env.example` & `frontend/.env.example`).
+  - Set up `backend/vercel.json` with `@vercel/python` and updated `backend/requirements.txt` with JWT and bcrypt dependencies.
+  - Added comprehensive root `README.md` with complete architecture and Vercel deployment instructions.
+  - Push repository to remote GitHub repository.
+  - Deploy Next.js 15 frontend and FastAPI backend to Vercel.
