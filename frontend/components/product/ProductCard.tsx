@@ -16,14 +16,15 @@ export default function ProductCard({ product }: ProductCardProps) {
   const [selectedVariationIndex, setSelectedVariationIndex] = useState<number>(0);
   const [isHovered, setIsHovered] = useState(false);
 
-  const currentVariation = product.variations[selectedVariationIndex];
+  const currentVariation = product.variations?.[selectedVariationIndex];
   
   // Decide which image to show:
   // If variation is selected, show its image; else fallback to primary_image
   const displayImage =
     currentVariation?.image?.url ||
-    (isHovered && product.gallery_images[0]?.url) ||
-    product.primary_image.url;
+    (isHovered && product.gallery_images?.[0]?.url) ||
+    product.primary_image?.url ||
+    product.primary_image?.relative_path;
 
   const currentPrice = currentVariation?.price_pkr ?? product.base_price_pkr;
   const regularPrice = currentVariation?.regular_price_pkr ?? product.regular_price_pkr;
@@ -53,7 +54,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       {/* Frame Image Container */}
       <Link
         href={`/product/${product.slug}`}
-        className="relative block w-full aspect-4/3 bg-gray-50 overflow-hidden cursor-pointer"
+        className="relative block w-full aspect-4/3 min-h-[220px] bg-gray-50 overflow-hidden cursor-pointer"
       >
         <Image
           src={getOptimizedImageUrl(displayImage, { width: 450, height: 350 })}

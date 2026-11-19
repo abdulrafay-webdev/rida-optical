@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     coupons,
     admin_orders,
     admin_products,
+    reviews,
 )
 
 api_router = APIRouter()
@@ -22,6 +23,7 @@ api_router.include_router(orders.router, prefix="/orders", tags=["Orders & Check
 api_router.include_router(search.router, prefix="/search", tags=["Catalog Search"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(coupons.router, prefix="/coupons", tags=["Promotions & Coupons"])
+api_router.include_router(reviews.router, prefix="/reviews", tags=["Reviews & Testimonials"])
 api_router.include_router(admin_orders.router, prefix="/admin", tags=["Admin Orders"])
 api_router.include_router(admin_products.router, prefix="/admin/products", tags=["Admin Products"])
 

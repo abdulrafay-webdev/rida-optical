@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "customer_name": "Muhammad Ali",
+    "city": "Karachi",
+    "rating": 5,
+    "image_url": "https://ik.imagekit.io/ridaoptical/2026/07/Screenshot_20260723-110035.png",
+    "product_name": "Maybach Premium Rimless Frame",
+    "comment": "Assalam o Alaikum! Frame receive ho gaya hay, quality bohot zabardast hay aur prescription lenses bilkul accurate hain. Shukriya!",
+    "created_at": "2026-07-23T11:00:35Z"
+  },
+  {
+    "id": 2,
+    "customer_name": "Zeeshan Ahmed",
+    "city": "Lahore",
+    "rating": 5,
+    "image_url": "https://ik.imagekit.io/ridaoptical/2026/07/Screenshot_20260723-1831262.jpg",
+    "product_name": "Fashion Eye Glasses (Balenciaga Style)",
+    "comment": "Parcel received safely via Leopard Courier with COD. Blue cut lenses are awesome for laptop work. 5 stars!",
+    "created_at": "2026-07-23T18:31:26Z"
+  },
+  {
+    "id": 3,
+    "customer_name": "Hassan Raza",
+    "city": "Islamabad",
+    "rating": 5,
+    "image_url": "https://ik.imagekit.io/ridaoptical/2026/08/img-20260805-wa00033522339616512041341.jpg",
+    "product_name": "Cartier Wooden Frame",
+    "comment": "Fitting is perfect and lightweight. Very happy with the packaging and prompt WhatsApp support.",
+    "created_at": "2026-08-05T14:22:10Z"
+  }
+]

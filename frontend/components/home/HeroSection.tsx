@@ -69,7 +69,7 @@ export default function HeroSection() {
                 FEATURED
               </div>
 
-              <div className="relative w-full aspect-4/3 bg-gray-50 rounded-xl overflow-hidden mb-6 flex items-center justify-center">
+              <div className="relative w-full aspect-4/3 min-h-[260px] bg-gray-50 rounded-xl overflow-hidden mb-6 flex items-center justify-center">
                 <img
                   src="https://ridaoptical.com/wp-content/uploads/2025/07/1000424554-scaled.jpg"
                   alt="Maybach & Balenciaga Optical Eyewear"

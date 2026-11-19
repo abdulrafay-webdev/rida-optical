@@ -17,12 +17,16 @@ import {
   getCategories,
   createCategory,
   deleteCategory,
+  getReviews,
+  createAdminReview,
+  deleteAdminReview,
   ApiAdminStats,
   ApiAdminOrderSummary,
   ApiAdminOrderDetail,
   ApiAdminProductListItem,
   ApiAdminProductCreatePayload,
   ApiCategoryItem,
+  ApiReviewItem,
 } from "@/lib/api";
 import { formatPricePKR } from "@/lib/utils";
 import {
@@ -49,6 +53,7 @@ import {
   Sparkles,
   Layers,
   FolderTree,
+  Star,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
@@ -56,8 +61,8 @@ export default function AdminDashboardPage() {
   const [token, setToken] = useState<string | null>(null);
   const [adminUser, setAdminUser] = useState<any>(null);
 
-  // Active Tab: "orders" | "products" | "categories"
-  const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories">("orders");
+  // Active Tab: "orders" | "products" | "categories" | "reviews"
+  const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories" | "reviews">("orders");
 
   // Orders State
   const [stats, setStats] = useState<ApiAdminStats | null>(null);
@@ -89,6 +94,29 @@ export default function AdminDashboardPage() {
     slug: "",
     parent_id: null,
     description: "",
+  });
+
+  // Reviews State
+  const [reviews, setReviews] = useState<ApiReviewItem[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewSearchQuery, setReviewSearchQuery] = useState("");
+  const [isAddReviewOpen, setIsAddReviewOpen] = useState(false);
+  const [creatingReview, setCreatingReview] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [reviewForm, setReviewForm] = useState<{
+    customer_name: string;
+    city: string;
+    rating: number;
+    image_url: string;
+    comment: string;
+    product_name: string;
+  }>({
+    customer_name: "",
+    city: "Karachi",
+    rating: 5,
+    image_url: "https://ik.imagekit.io/ridaoptical/2026/07/Screenshot_20260723-110035.png",
+    comment: "",
+    product_name: "Maybach Premium Rimless Frame",
   });
 
   // Modal: Order Detail
@@ -235,6 +263,19 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Load Reviews
+  const loadReviewsData = async () => {
+    setLoadingReviews(true);
+    try {
+      const data = await getReviews();
+      setReviews(data || []);
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
   useEffect(() => {
     if (token) {
       loadCategoriesData();
@@ -244,9 +285,72 @@ export default function AdminDashboardPage() {
         loadProductsData(token);
       } else if (activeTab === "categories") {
         loadCategoriesData();
+      } else if (activeTab === "reviews") {
+        loadReviewsData();
       }
     }
   }, [token, activeTab, statusFilter, productCategoryFilter]);
+
+  const handleCreateReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    if (!reviewForm.customer_name.trim()) {
+      alert("Customer name is required.");
+      return;
+    }
+    if (!reviewForm.image_url.trim()) {
+      alert("Review screenshot image URL is required.");
+      return;
+    }
+
+    setCreatingReview(true);
+    setReviewMessage(null);
+
+    try {
+      await createAdminReview(token, {
+        customer_name: reviewForm.customer_name.trim(),
+        city: reviewForm.city.trim() || undefined,
+        rating: Number(reviewForm.rating) || 5,
+        image_url: reviewForm.image_url.trim(),
+        comment: reviewForm.comment.trim() || undefined,
+        product_name: reviewForm.product_name.trim() || undefined,
+      });
+
+      setReviewMessage({ text: "Review added successfully!", isError: false });
+      await loadReviewsData();
+      setTimeout(() => {
+        setIsAddReviewOpen(false);
+        setReviewMessage(null);
+        setReviewForm({
+          customer_name: "",
+          city: "Karachi",
+          rating: 5,
+          image_url: "https://ik.imagekit.io/ridaoptical/2026/07/Screenshot_20260723-110035.png",
+          comment: "",
+          product_name: "Maybach Premium Rimless Frame",
+        });
+      }, 1200);
+    } catch (err: any) {
+      setReviewMessage({ text: err.message || "Failed to add review", isError: true });
+    } finally {
+      setCreatingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: number, customerName: string) => {
+    if (!token) return;
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete the review by "${customerName}"?`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await deleteAdminReview(token, reviewId);
+      await loadReviewsData();
+    } catch (err: any) {
+      alert("Failed to delete review: " + err.message);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("rida_admin_token");
@@ -601,6 +705,21 @@ export default function AdminDashboardPage() {
                   {categories.length || 27}
                 </span>
               </button>
+
+              <button
+                onClick={() => setActiveTab("reviews")}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  activeTab === "reviews"
+                    ? "bg-brand-primary text-white shadow-xs"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>Reviews & Photos</span>
+                <span className="ml-1 px-1.5 py-0.2 bg-slate-900/60 rounded text-[10px]">
+                  {reviews.length || 3}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -627,10 +746,10 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Mobile Sub-Navbar */}
-        <div className="md:hidden flex border-t border-slate-800 px-4 py-2 gap-2 bg-slate-950">
+        <div className="md:hidden flex border-t border-slate-800 px-4 py-2 gap-2 bg-slate-950 overflow-x-auto">
           <button
             onClick={() => setActiveTab("orders")}
-            className={`flex-1 py-1.5 text-center text-xs font-bold rounded-lg ${
+            className={`flex-1 py-1.5 px-2 whitespace-nowrap text-center text-xs font-bold rounded-lg ${
               activeTab === "orders" ? "bg-brand-primary text-white" : "text-slate-400"
             }`}
           >
@@ -638,7 +757,7 @@ export default function AdminDashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab("products")}
-            className={`flex-1 py-1.5 text-center text-xs font-bold rounded-lg ${
+            className={`flex-1 py-1.5 px-2 whitespace-nowrap text-center text-xs font-bold rounded-lg ${
               activeTab === "products" ? "bg-brand-primary text-white" : "text-slate-400"
             }`}
           >
@@ -646,11 +765,19 @@ export default function AdminDashboardPage() {
           </button>
           <button
             onClick={() => setActiveTab("categories")}
-            className={`flex-1 py-1.5 text-center text-xs font-bold rounded-lg ${
+            className={`flex-1 py-1.5 px-2 whitespace-nowrap text-center text-xs font-bold rounded-lg ${
               activeTab === "categories" ? "bg-brand-primary text-white" : "text-slate-400"
             }`}
           >
             Categories ({categories.length || 27})
+          </button>
+          <button
+            onClick={() => setActiveTab("reviews")}
+            className={`flex-1 py-1.5 px-2 whitespace-nowrap text-center text-xs font-bold rounded-lg ${
+              activeTab === "reviews" ? "bg-brand-primary text-white" : "text-slate-400"
+            }`}
+          >
+            Reviews ({reviews.length || 3})
           </button>
         </div>
       </header>
@@ -1201,6 +1328,167 @@ export default function AdminDashboardPage() {
                 </div>
               )}
             </div>
+          </section>
+        )}
+
+        {/* =================================================================== */}
+        {/* TAB 4: REVIEWS & PHOTOS MANAGEMENT                                  */}
+        {/* =================================================================== */}
+        {activeTab === "reviews" && (
+          <section className="space-y-6">
+            {/* Top Action Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+              <div>
+                <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5 text-brand-primary" />
+                  <span>Customer Reviews & Photos Management</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Publish customer feedback, WhatsApp screenshot unboxings, and photo reviews on the storefront.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsAddReviewOpen(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-hover text-white text-xs font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Review Image</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search reviews by customer, city, or frame..."
+                  value={reviewSearchQuery}
+                  onChange={(e) => setReviewSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-primary"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => loadReviewsData()}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                title="Refresh Reviews"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingReviews ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+
+            {/* Reviews Cards Grid */}
+            {loadingReviews ? (
+              <div className="bg-white rounded-3xl border border-slate-200/80 p-20 text-center space-y-2">
+                <RefreshCw className="w-6 h-6 text-brand-primary animate-spin mx-auto" />
+                <p className="text-xs text-slate-500 font-semibold">Loading reviews...</p>
+              </div>
+            ) : reviews.length === 0 ? (
+              <div className="bg-white rounded-3xl border border-slate-200/80 p-20 text-center space-y-3">
+                <MessageCircle className="w-10 h-10 text-slate-300 mx-auto" />
+                <h3 className="text-sm font-bold text-slate-700">No Reviews Found</h3>
+                <p className="text-xs text-slate-400">Click &quot;Add Review Image&quot; to add your first customer review.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {reviews
+                  .filter((r) => {
+                    if (!reviewSearchQuery.trim()) return true;
+                    const q = reviewSearchQuery.toLowerCase();
+                    return (
+                      r.customer_name.toLowerCase().includes(q) ||
+                      (r.city && r.city.toLowerCase().includes(q)) ||
+                      (r.product_name && r.product_name.toLowerCase().includes(q)) ||
+                      (r.comment && r.comment.toLowerCase().includes(q))
+                    );
+                  })
+                  .map((rev) => (
+                    <div
+                      key={rev.id}
+                      className="bg-white rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Image Preview */}
+                        <div className="relative w-full h-56 bg-slate-900 overflow-hidden flex items-center justify-center group">
+                          {rev.image_url ? (
+                            <Image
+                              src={rev.image_url}
+                              alt={rev.customer_name}
+                              fill
+                              className="object-contain"
+                              sizes="(max-width: 768px) 100vw, 33vw"
+                            />
+                          ) : (
+                            <div className="text-xs text-slate-400">No screenshot attached</div>
+                          )}
+                          <a
+                            href={rev.image_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="absolute top-3 right-3 p-1.5 rounded-lg bg-black/60 text-white hover:bg-black/80 transition-colors backdrop-blur-xs"
+                            title="Open original image"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-5 space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                                <span>{rev.customer_name}</span>
+                                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                              </h4>
+                              {rev.city && (
+                                <span className="text-[11px] text-slate-400 font-medium">
+                                  {rev.city}, Pakistan
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center text-amber-500">
+                              {[...Array(rev.rating || 5)].map((_, i) => (
+                                <Star key={i} className="w-3.5 h-3.5 fill-current" />
+                              ))}
+                            </div>
+                          </div>
+
+                          {rev.product_name && (
+                            <div className="inline-block px-2.5 py-1 rounded-md bg-blue-50 text-brand-primary text-[11px] font-bold">
+                              Frame: {rev.product_name}
+                            </div>
+                          )}
+
+                          {rev.comment && (
+                            <p className="text-xs text-slate-600 italic leading-relaxed border-l-2 border-slate-200 pl-3">
+                              &ldquo;{rev.comment}&rdquo;
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Footer Actions */}
+                      <div className="px-5 py-3.5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span className="text-[11px] text-slate-400">
+                          {rev.created_at ? new Date(rev.created_at).toLocaleDateString() : "Verified Customer"}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteReview(rev.id, rev.customer_name)}
+                          className="flex items-center gap-1 text-rose-600 hover:text-rose-700 font-bold px-2 py-1 rounded-lg hover:bg-rose-50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </section>
         )}
       </main>
@@ -1915,6 +2203,208 @@ export default function AdminDashboardPage() {
       )}
 
       {/* =================================================================== */}
+      {/* MODAL: ADD NEW CUSTOMER REVIEW & SCREENSHOT                         */}
+      {/* =================================================================== */}
+      {isAddReviewOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                  <MessageCircle className="w-6 h-6 text-brand-primary" />
+                  <span>Add Customer Review & Screenshot</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Publish a new WhatsApp review or unboxing picture to the storefront.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAddReviewOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {reviewMessage && (
+              <div
+                className={`p-4 rounded-xl text-xs font-bold ${
+                  reviewMessage.isError
+                    ? "bg-red-50 text-red-700 border border-red-200"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                }`}
+              >
+                {reviewMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateReviewSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Customer Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Usman Ghani"
+                    value={reviewForm.customer_name}
+                    onChange={(e) =>
+                      setReviewForm({ ...reviewForm, customer_name: e.target.value })
+                    }
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    City (Pakistan)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Karachi, Lahore, Islamabad"
+                    value={reviewForm.city}
+                    onChange={(e) =>
+                      setReviewForm({ ...reviewForm, city: e.target.value })
+                    }
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Rating (Stars)
+                  </label>
+                  <select
+                    value={reviewForm.rating}
+                    onChange={(e) =>
+                      setReviewForm({ ...reviewForm, rating: Number(e.target.value) })
+                    }
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                  >
+                    <option value={5}>★★★★★ (5 Stars - Excellent)</option>
+                    <option value={4}>★★★★☆ (4 Stars - Good)</option>
+                    <option value={3}>★★★☆☆ (3 Stars - Average)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Frame / Product Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Maybach Rimless / Cartier Frame"
+                    value={reviewForm.product_name}
+                    onChange={(e) =>
+                      setReviewForm({ ...reviewForm, product_name: e.target.value })
+                    }
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Screenshot Image URL *
+                </label>
+                <input
+                  type="url"
+                  required
+                  placeholder="https://ik.imagekit.io/ridaoptical/..."
+                  value={reviewForm.image_url}
+                  onChange={(e) =>
+                    setReviewForm({ ...reviewForm, image_url: e.target.value })
+                  }
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-mono"
+                />
+
+                {/* Quick Presets */}
+                <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                    Presets:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReviewForm({
+                        ...reviewForm,
+                        image_url:
+                          "https://ik.imagekit.io/ridaoptical/2026/07/Screenshot_20260723-110035.png",
+                      })
+                    }
+                    className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded transition-colors"
+                  >
+                    WhatsApp Chat 1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReviewForm({
+                        ...reviewForm,
+                        image_url:
+                          "https://ik.imagekit.io/ridaoptical/2026/07/Screenshot_20260723-1831262.jpg",
+                      })
+                    }
+                    className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded transition-colors"
+                  >
+                    WhatsApp Chat 2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReviewForm({
+                        ...reviewForm,
+                        image_url:
+                          "https://ik.imagekit.io/ridaoptical/2026/08/img-20260805-wa00033522339616512041341.jpg",
+                      })
+                    }
+                    className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded transition-colors"
+                  >
+                    Parcel Unboxing
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Customer Comment / WhatsApp Chat Feedback
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Paste what the customer said (e.g. Frame receive ho gaya hay, quality bohot zabardast hay...)"
+                  value={reviewForm.comment}
+                  onChange={(e) =>
+                    setReviewForm({ ...reviewForm, comment: e.target.value })
+                  }
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddReviewOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingReview}
+                  className="px-6 py-2.5 rounded-xl bg-brand-primary text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-hover shadow-md transition-all disabled:opacity-50"
+                >
+                  {creatingReview ? "Adding Review..." : "Add Review"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
       {/* MODAL: ORDER DETAIL                                                 */}
       {/* =================================================================== */}
       {selectedOrderDetail && (
@@ -2116,393 +2606,6 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* =================================================================== */}
-      {/* MODAL: EDIT PRODUCT                                                 */}
-      {/* =================================================================== */}
-      {isEditProductOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                  <Edit3 className="w-6 h-6 text-brand-primary" />
-                  <span>Edit Product #{editProductId}</span>
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Update optical frame specs, prices, variations, and catalog details.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsEditProductOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {editProductMessage && (
-              <div
-                className={`p-4 rounded-xl text-xs font-bold ${
-                  editProductMessage.isError
-                    ? "bg-red-50 text-red-700 border border-red-200"
-                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                }`}
-              >
-                {editProductMessage.text}
-              </div>
-            )}
-
-            <form onSubmit={handleUpdateProductSubmit} className="space-y-6">
-              {/* Section 1: Basic Information */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5">
-                  1. Product Details
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Product Title *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={editProductForm.title}
-                      onChange={(e) =>
-                        setEditProductForm({ ...editProductForm, title: e.target.value })
-                      }
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Category *
-                    </label>
-                    <select
-                      value={editProductForm.category_slug}
-                      onChange={(e) =>
-                        setEditProductForm({ ...editProductForm, category_slug: e.target.value })
-                      }
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
-                    >
-                      {categories.length > 0 ? (
-                        categories.map((c) => (
-                          <option key={c.id} value={c.slug}>
-                            {c.name}
-                          </option>
-                        ))
-                      ) : (
-                        <>
-                          <option value="eye-glasses">Eye Glasses</option>
-                          <option value="sunglasses">Sunglasses</option>
-                          <option value="reading-glasses">Reading Glasses</option>
-                          <option value="computer-glasses">Computer Glasses</option>
-                          <option value="contatc-lenses">Contact Lenses</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      SKU Code
-                    </label>
-                    <input
-                      type="text"
-                      value={editProductForm.sku}
-                      onChange={(e) =>
-                        setEditProductForm({ ...editProductForm, sku: e.target.value })
-                      }
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Base Price (PKR) *
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      min={100}
-                      value={editProductForm.base_price_pkr}
-                      onChange={(e) =>
-                        setEditProductForm({
-                          ...editProductForm,
-                          base_price_pkr: Number(e.target.value),
-                        })
-                      }
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Sale Price (PKR) (Optional)
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 1999 (Leave empty if no sale)"
-                      value={editProductForm.sale_price_pkr ?? ""}
-                      onChange={(e) =>
-                        setEditProductForm({
-                          ...editProductForm,
-                          sale_price_pkr: e.target.value ? Number(e.target.value) : undefined,
-                        })
-                      }
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Stock Status
-                    </label>
-                    <select
-                      value={editProductForm.stock_status}
-                      onChange={(e) =>
-                        setEditProductForm({ ...editProductForm, stock_status: e.target.value })
-                      }
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
-                    >
-                      <option value="instock">In Stock</option>
-                      <option value="outofstock">Out of Stock</option>
-                      <option value="onbackorder">Backorder</option>
-                    </select>
-                  </div>
-
-                  <div className="sm:col-span-2 flex flex-wrap gap-6 pt-2">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={editProductForm.has_prescription_support}
-                        onChange={(e) =>
-                          setEditProductForm({
-                            ...editProductForm,
-                            has_prescription_support: e.target.checked,
-                          })
-                        }
-                        className="rounded text-brand-primary focus:ring-brand-primary w-4 h-4"
-                      />
-                      <span>Supports Custom Optical Prescription Lenses</span>
-                    </label>
-
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={editProductForm.is_featured}
-                        onChange={(e) =>
-                          setEditProductForm({
-                            ...editProductForm,
-                            is_featured: e.target.checked,
-                          })
-                        }
-                        className="rounded text-brand-primary focus:ring-brand-primary w-4 h-4"
-                      />
-                      <span>Feature on Store Homepage</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: Media & Image */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5">
-                  2. Primary Product Image (ImageKit CDN or URL)
-                </h4>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Image URL
-                  </label>
-                  <input
-                    type="url"
-                    value={editProductForm.primary_image_url}
-                    onChange={(e) =>
-                      setEditProductForm({ ...editProductForm, primary_image_url: e.target.value })
-                    }
-                    placeholder="https://ik.imagekit.io/ridaoptical/..."
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-mono"
-                  />
-                  {editProductForm.primary_image_url && (
-                    <div className="mt-2 w-16 h-16 rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
-                      <img
-                        src={editProductForm.primary_image_url}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Section 3: Descriptions */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5">
-                  3. Description
-                </h4>
-
-                <div>
-                  <textarea
-                    rows={3}
-                    placeholder="Enter complete product specifications..."
-                    value={editProductForm.description}
-                    onChange={(e) =>
-                      setEditProductForm({ ...editProductForm, description: e.target.value })
-                    }
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsEditProductOpen(false)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={updatingProduct}
-                  className="px-6 py-2.5 rounded-xl bg-brand-primary text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-hover shadow-md transition-all disabled:opacity-50"
-                >
-                  {updatingProduct ? "Saving Changes..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* MODAL: ADD NEW CATEGORY                                             */}
-      {/* =================================================================== */}
-      {isAddCategoryOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                  <Tag className="w-6 h-6 text-brand-primary" />
-                  <span>Add New Product Category</span>
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Create a new category for frames, sunglasses, or lenses.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsAddCategoryOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {categoryMessage && (
-              <div
-                className={`p-4 rounded-xl text-xs font-bold ${
-                  categoryMessage.isError
-                    ? "bg-red-50 text-red-700 border border-red-200"
-                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                }`}
-              >
-                {categoryMessage.text}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateCategorySubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Category Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Polarized Sunglasses, Titanium Frames"
-                  value={categoryForm.name}
-                  onChange={(e) =>
-                    setCategoryForm({ ...categoryForm, name: e.target.value })
-                  }
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Category Slug (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Auto-generated from name if empty"
-                  value={categoryForm.slug}
-                  onChange={(e) =>
-                    setCategoryForm({ ...categoryForm, slug: e.target.value })
-                  }
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Parent Category (Optional)
-                </label>
-                <select
-                  value={categoryForm.parent_id ?? ""}
-                  onChange={(e) =>
-                    setCategoryForm({
-                      ...categoryForm,
-                      parent_id: e.target.value ? Number(e.target.value) : null,
-                    })
-                  }
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
-                >
-                  <option value="">None (Top-Level Category)</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Description (Optional)
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Brief description of this category for store SEO..."
-                  value={categoryForm.description}
-                  onChange={(e) =>
-                    setCategoryForm({ ...categoryForm, description: e.target.value })
-                  }
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsAddCategoryOpen(false)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingCategory}
-                  className="px-6 py-2.5 rounded-xl bg-brand-primary text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-hover shadow-md transition-all disabled:opacity-50"
-                >
-                  {creatingCategory ? "Creating Category..." : "Create Category"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

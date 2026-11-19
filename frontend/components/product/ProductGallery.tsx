@@ -34,10 +34,10 @@ export default function ProductGallery({
   return (
     <div className="space-y-4">
       {/* Main Image Display */}
-      <div className="relative w-full aspect-4/3 bg-gray-50 rounded-2xl border border-gray-200/80 overflow-hidden flex items-center justify-center shadow-xs">
+      <div className="relative w-full aspect-4/3 min-h-[320px] sm:min-h-[440px] bg-gray-50 rounded-2xl border border-gray-200/80 overflow-hidden flex items-center justify-center shadow-xs">
         <Image
-          src={getOptimizedImageUrl(selectedImage.url, { width: 800, height: 600 })}
-          alt={selectedImage.alt_text || title}
+          src={getOptimizedImageUrl(selectedImage?.url || selectedImage?.relative_path || primaryImage?.url, { width: 800, height: 600 })}
+          alt={selectedImage?.alt_text || title}
           fill
           priority
           sizes="(max-width: 768px) 100vw, 50vw"

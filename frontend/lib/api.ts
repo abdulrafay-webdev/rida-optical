@@ -477,3 +477,69 @@ export async function deleteCategory(token: string, categoryId: number) {
   }
   return res.json();
 }
+
+export interface ApiReviewItem {
+  id: number;
+  customer_name: string;
+  city?: string;
+  rating: number;
+  image_url: string;
+  comment?: string;
+  product_name?: string;
+  created_at: string;
+}
+
+/**
+ * Public: Get Customer Reviews & Visual Feedback
+ */
+export async function getReviews(): Promise<ApiReviewItem[]> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/reviews`);
+  if (!res.ok) {
+    throw new Error(`Failed to load reviews: ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
+ * Admin: Add New Customer Review Image & Feedback
+ */
+export async function createAdminReview(
+  token: string,
+  payload: {
+    customer_name: string;
+    city?: string;
+    rating?: number;
+    image_url: string;
+    comment?: string;
+    product_name?: string;
+  }
+): Promise<ApiReviewItem> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/reviews`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Failed to create review" }));
+    throw new Error(err.detail || "Review creation failed");
+  }
+  return res.json();
+}
+
+/**
+ * Admin: Delete a Customer Review
+ */
+export async function deleteAdminReview(token: string, reviewId: number) {
+  const res = await fetch(`${API_BASE_URL}/api/v1/reviews/${reviewId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Failed to delete review" }));
+    throw new Error(err.detail || "Review deletion failed");
+  }
+  return res.json();
+}

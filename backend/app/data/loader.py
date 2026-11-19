@@ -12,6 +12,7 @@ class DataRepository:
     def __init__(self):
         self._products: List[Dict[str, Any]] = []
         self._categories: List[Dict[str, Any]] = []
+        self._reviews: List[Dict[str, Any]] = []
         self._optical_config: Dict[str, Any] = {}
 
         self._products_by_id: Dict[int, Dict[str, Any]] = {}
@@ -62,6 +63,11 @@ class DataRepository:
                     self._coatings_by_id[c["id"]] = c
                 for u in self._optical_config.get("step_1_usage_types", []):
                     self._usage_by_id[u["id"]] = u
+
+        reviews_file = data_dir / "reviews.json"
+        if reviews_file.exists():
+            with open(reviews_file, "r", encoding="utf-8") as f:
+                self._reviews = json.load(f)
 
     # --------------------------------------------------------------------------
     # Products
@@ -307,6 +313,45 @@ class DataRepository:
             pass
 
         return True
+
+    # --------------------------------------------------------------------------
+    # Reviews
+    # --------------------------------------------------------------------------
+    def get_reviews(self) -> List[Dict[str, Any]]:
+        return self._reviews
+
+    def add_review(self, rev_dict: Dict[str, Any]) -> Dict[str, Any]:
+        if "id" not in rev_dict or not rev_dict["id"]:
+            max_id = max([r["id"] for r in self._reviews], default=0)
+            rev_dict["id"] = max_id + 1
+
+        if "created_at" not in rev_dict:
+            rev_dict["created_at"] = datetime.now(timezone.utc).isoformat()
+
+        self._reviews.insert(0, rev_dict)
+
+        try:
+            data_file = self._get_data_dir() / "reviews.json"
+            with open(data_file, "w", encoding="utf-8") as f:
+                json.dump(self._reviews, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+        return rev_dict
+
+    def delete_review(self, review_id: int) -> bool:
+        initial_len = len(self._reviews)
+        self._reviews = [r for r in self._reviews if r["id"] != review_id]
+
+        if len(self._reviews) < initial_len:
+            try:
+                data_file = self._get_data_dir() / "reviews.json"
+                with open(data_file, "w", encoding="utf-8") as f:
+                    json.dump(self._reviews, f, indent=2, ensure_ascii=False)
+            except Exception:
+                pass
+            return True
+        return False
 
     # --------------------------------------------------------------------------
     # Optical Options
