@@ -122,3 +122,23 @@ class AdminProductCreate(BaseModel):
     primary_image_url: Optional[str] = None
     gallery_image_urls: Optional[List[str]] = []
     variations: Optional[List[AdminVariationCreate]] = []
+
+
+class AdminProductUpdate(BaseModel):
+    title: Optional[str] = None
+    slug: Optional[str] = None
+    sku: Optional[str] = None
+    base_price_pkr: Optional[float] = None
+    regular_price_pkr: Optional[float] = None
+    sale_price_pkr: Optional[float] = None
+    category_id: Optional[int] = None
+    category_slug: Optional[str] = None
+    stock_status: Optional[str] = None
+    is_featured: Optional[bool] = None
+    has_prescription_support: Optional[bool] = None
+    short_description: Optional[str] = None
+    description: Optional[str] = None
+    primary_image_url: Optional[str] = None
+    gallery_image_urls: Optional[List[str]] = None
+    variations: Optional[List[AdminVariationCreate]] = None
+

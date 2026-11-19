@@ -384,3 +384,96 @@ export async function deleteAdminProduct(token: string, productId: number) {
   }
   return res.json();
 }
+
+/**
+ * Admin: Get Single Product Details for Editing
+ */
+export async function getAdminProduct(token: string, productId: number) {
+  const res = await fetch(`${API_BASE_URL}/api/v1/admin/products/${productId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to load product details: ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
+ * Admin: Update an Existing Product
+ */
+export async function updateAdminProduct(
+  token: string,
+  productId: number,
+  payload: Partial<ApiAdminProductCreatePayload>
+) {
+  const res = await fetch(`${API_BASE_URL}/api/v1/admin/products/${productId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Failed to update product" }));
+    throw new Error(err.detail || "Product update failed");
+  }
+  return res.json();
+}
+
+export interface ApiCategoryItem {
+  id: number;
+  name: string;
+  slug: string;
+  parent_id?: number | null;
+  product_count: number;
+  description?: string | null;
+}
+
+/**
+ * Public/Admin: Get All Categories
+ */
+export async function getCategories(parentOnly: boolean = false): Promise<ApiCategoryItem[]> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/categories?parent_only=${parentOnly}`);
+  if (!res.ok) {
+    throw new Error(`Failed to load categories: ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
+ * Admin: Create New Product Category
+ */
+export async function createCategory(
+  token: string,
+  payload: { name: string; slug?: string; parent_id?: number | null; description?: string }
+): Promise<ApiCategoryItem> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/categories`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Failed to create category" }));
+    throw new Error(err.detail || "Category creation failed");
+  }
+  return res.json();
+}
+
+/**
+ * Admin: Delete Category
+ */
+export async function deleteCategory(token: string, categoryId: number) {
+  const res = await fetch(`${API_BASE_URL}/api/v1/categories/${categoryId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Failed to delete category" }));
+    throw new Error(err.detail || "Category deletion failed");
+  }
+  return res.json();
+}

@@ -209,6 +209,33 @@ class DataRepository:
 
         return True
 
+    def update_product(self, product_id: int, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if product_id not in self._products_by_id:
+            return None
+
+        prod = self._products_by_id[product_id]
+        old_slug = prod.get("slug")
+
+        for k, v in updates.items():
+            if v is not None:
+                prod[k] = v
+
+        new_slug = prod.get("slug")
+        if old_slug and new_slug and old_slug != new_slug:
+            if old_slug in self._products_by_slug:
+                del self._products_by_slug[old_slug]
+            self._products_by_slug[new_slug] = prod
+
+        try:
+            data_file = self._get_data_dir() / "products.json"
+            if data_file.exists():
+                with open(data_file, "w", encoding="utf-8") as f:
+                    json.dump(self._products, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+        return prod
+
     # --------------------------------------------------------------------------
     # Categories
     # --------------------------------------------------------------------------
@@ -235,6 +262,51 @@ class DataRepository:
         if isinstance(slug_or_id, int) or (isinstance(slug_or_id, str) and slug_or_id.isdigit()):
             return self._categories_by_id.get(int(slug_or_id))
         return self._categories_by_slug.get(str(slug_or_id))
+
+    def add_category(self, cat_dict: Dict[str, Any]) -> Dict[str, Any]:
+        if "id" not in cat_dict or not cat_dict["id"]:
+            max_id = max(self._categories_by_id.keys(), default=200)
+            cat_dict["id"] = max_id + 1
+
+        cid = cat_dict["id"]
+        slug = cat_dict.get("slug") or f"category-{cid}"
+        cat_dict["slug"] = slug
+        cat_dict["product_count"] = cat_dict.get("product_count", 0)
+
+        self._categories.append(cat_dict)
+        self._categories_by_id[cid] = cat_dict
+        self._categories_by_slug[slug] = cat_dict
+
+        try:
+            data_file = self._get_data_dir() / "categories.json"
+            if data_file.exists():
+                with open(data_file, "w", encoding="utf-8") as f:
+                    json.dump(self._categories, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+        return cat_dict
+
+    def delete_category(self, category_id: int) -> bool:
+        if category_id not in self._categories_by_id:
+            return False
+
+        cat = self._categories_by_id.pop(category_id)
+        slug = cat.get("slug")
+        if slug and slug in self._categories_by_slug:
+            del self._categories_by_slug[slug]
+
+        self._categories = [c for c in self._categories if c["id"] != category_id]
+
+        try:
+            data_file = self._get_data_dir() / "categories.json"
+            if data_file.exists():
+                with open(data_file, "w", encoding="utf-8") as f:
+                    json.dump(self._categories, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+        return True
 
     # --------------------------------------------------------------------------
     # Optical Options

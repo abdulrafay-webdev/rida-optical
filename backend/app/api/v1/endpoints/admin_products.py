@@ -9,7 +9,7 @@ from app.models.user import User
 from app.models.product import Product, ProductVariation
 from app.models.category import Category, ProductCategoryLink
 from app.models.image import MediaAsset
-from app.schemas.product import AdminProductCreate
+from app.schemas.product import AdminProductCreate, AdminProductUpdate
 from app.data.loader import repo
 
 router = APIRouter()
@@ -299,6 +299,169 @@ async def create_admin_product(
         "success": True,
         "message": f"Product '{saved_product['title']}' created successfully.",
         "product": saved_product,
+    }
+
+
+@router.get("/{product_id}", summary="Admin: Get single product for editing")
+async def get_admin_product(
+    product_id: int,
+    admin: User = Depends(get_current_admin),
+):
+    prod = repo.get_product(product_id)
+    if not prod:
+        raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found.")
+    return prod
+
+
+@router.put("/{product_id}", summary="Admin: Update an existing product")
+async def update_admin_product(
+    product_id: int,
+    payload: AdminProductUpdate,
+    session: Session = Depends(get_session),
+    admin: User = Depends(get_current_admin),
+):
+    existing = repo.get_product(product_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found.")
+
+    updates: Dict[str, Any] = {}
+
+    if payload.title is not None:
+        updates["title"] = payload.title.strip()
+    if payload.slug is not None:
+        updates["slug"] = payload.slug.strip() or slugify(payload.title or existing["title"])
+    if payload.sku is not None:
+        updates["sku"] = payload.sku.strip()
+    if payload.base_price_pkr is not None:
+        updates["base_price_pkr"] = payload.base_price_pkr
+        updates["regular_price_pkr"] = payload.regular_price_pkr or payload.base_price_pkr
+    if payload.sale_price_pkr is not None:
+        updates["sale_price_pkr"] = payload.sale_price_pkr
+    if payload.stock_status is not None:
+        updates["stock_status"] = payload.stock_status
+    if payload.is_featured is not None:
+        updates["is_featured"] = payload.is_featured
+    if payload.has_prescription_support is not None:
+        updates["has_prescription_support"] = payload.has_prescription_support
+    if payload.short_description is not None:
+        updates["short_description"] = payload.short_description
+    if payload.description is not None:
+        updates["description"] = payload.description
+
+    # Category update
+    category_id = payload.category_id
+    if category_id:
+        cat_in_repo = repo._categories_by_id.get(category_id)
+        if cat_in_repo:
+            updates["primary_category"] = {
+                "id": cat_in_repo["id"],
+                "name": cat_in_repo["name"],
+                "slug": cat_in_repo["slug"],
+            }
+            updates["all_categories"] = [updates["primary_category"]]
+    elif payload.category_slug:
+        cat_in_repo = repo._categories_by_slug.get(payload.category_slug.lower())
+        if cat_in_repo:
+            updates["primary_category"] = {
+                "id": cat_in_repo["id"],
+                "name": cat_in_repo["name"],
+                "slug": cat_in_repo["slug"],
+            }
+            updates["all_categories"] = [updates["primary_category"]]
+
+    # Image update
+    if payload.primary_image_url:
+        updates["primary_image"] = {
+            "id": existing.get("primary_image", {}).get("id", product_id * 10),
+            "title": f"{updates.get('slug', existing['slug'])}-primary.jpg",
+            "relative_path": f"2026/products/{updates.get('slug', existing['slug'])}.jpg",
+            "url": payload.primary_image_url,
+            "alt_text": updates.get("title", existing["title"]),
+            "file_exists_on_disk": True,
+        }
+
+    # Variations update
+    if payload.variations is not None:
+        variations_list = []
+        available_colors = []
+        for idx, var_in in enumerate(payload.variations, 1):
+            var_id = product_id * 10 + idx
+            var_color_name = var_in.color_name.strip()
+            var_color_slug = slugify(var_color_name)
+            var_color_hex = var_in.color_hex or "#000000"
+            var_price = var_in.price_pkr if var_in.price_pkr and var_in.price_pkr > 0 else updates.get("base_price_pkr", existing["base_price_pkr"])
+            var_sku = var_in.sku or f"{updates.get('sku', existing['sku'])}-{var_color_slug.upper()}"
+            var_img_url = var_in.image_url or (updates.get("primary_image", {}).get("url") or existing.get("primary_image", {}).get("url"))
+
+            var_dict = {
+                "variation_id": var_id,
+                "title": f"{updates.get('title', existing['title'])} - {var_color_name}",
+                "slug": f"{updates.get('slug', existing['slug'])}-{var_color_slug}",
+                "sku": var_sku,
+                "color": {
+                    "term_id": var_id,
+                    "name": var_color_name,
+                    "slug": var_color_slug,
+                    "hex_code": var_color_hex,
+                },
+                "size": "Standard",
+                "price_pkr": var_price,
+                "regular_price_pkr": var_price,
+                "sale_price_pkr": updates.get("sale_price_pkr", existing.get("sale_price_pkr")),
+                "stock_status": updates.get("stock_status", existing.get("stock_status", "instock")),
+                "image": {
+                    "id": var_id,
+                    "title": f"{updates.get('slug', existing['slug'])}-{var_color_slug}.jpg",
+                    "relative_path": f"2026/products/{updates.get('slug', existing['slug'])}-{var_color_slug}.jpg",
+                    "url": var_img_url,
+                    "alt_text": f"{updates.get('title', existing['title'])} in {var_color_name}",
+                    "file_exists_on_disk": True,
+                },
+            }
+            variations_list.append(var_dict)
+            available_colors.append(var_dict["color"])
+        updates["variations"] = variations_list
+        updates["variations_count"] = len(variations_list)
+        updates["available_colors"] = available_colors
+
+    # Persist to Neon DB
+    try:
+        db_prod = session.get(Product, product_id)
+        if db_prod:
+            if "title" in updates:
+                db_prod.title = updates["title"]
+            if "slug" in updates:
+                db_prod.slug = updates["slug"]
+            if "sku" in updates:
+                db_prod.sku = updates["sku"]
+            if "base_price_pkr" in updates:
+                db_prod.base_price_pkr = updates["base_price_pkr"]
+            if "regular_price_pkr" in updates:
+                db_prod.regular_price_pkr = updates["regular_price_pkr"]
+            if "sale_price_pkr" in updates:
+                db_prod.sale_price_pkr = updates["sale_price_pkr"]
+            if "stock_status" in updates:
+                db_prod.stock_status = updates["stock_status"]
+            if "is_featured" in updates:
+                db_prod.is_featured = updates["is_featured"]
+            if "has_prescription_support" in updates:
+                db_prod.has_prescription_support = updates["has_prescription_support"]
+            if "description" in updates:
+                db_prod.description = updates["description"]
+            if "short_description" in updates:
+                db_prod.short_description = updates["short_description"]
+            session.add(db_prod)
+            session.commit()
+    except Exception as db_err:
+        session.rollback()
+        print(f"Warning: Neon DB update error: {db_err}")
+
+    # Update in memory & json
+    updated_prod = repo.update_product(product_id, updates)
+    return {
+        "success": True,
+        "message": f"Product '{updated_prod['title']}' updated successfully.",
+        "product": updated_prod,
     }
 
 

@@ -2,6 +2,20 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 
+class CategoryCreate(BaseModel):
+    name: str
+    slug: Optional[str] = None
+    parent_id: Optional[int] = None
+    description: Optional[str] = None
+
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    slug: Optional[str] = None
+    parent_id: Optional[int] = None
+    description: Optional[str] = None
+
+
 class CategoryBaseSchema(BaseModel):
     id: int
     name: str

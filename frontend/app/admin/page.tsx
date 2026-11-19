@@ -10,13 +10,19 @@ import {
   getAdminOrderDetail,
   updateOrderStatus,
   getAdminProducts,
+  getAdminProduct,
   createAdminProduct,
+  updateAdminProduct,
   deleteAdminProduct,
+  getCategories,
+  createCategory,
+  deleteCategory,
   ApiAdminStats,
   ApiAdminOrderSummary,
   ApiAdminOrderDetail,
   ApiAdminProductListItem,
   ApiAdminProductCreatePayload,
+  ApiCategoryItem,
 } from "@/lib/api";
 import { formatPricePKR } from "@/lib/utils";
 import {
@@ -32,6 +38,7 @@ import {
   ExternalLink,
   MessageCircle,
   Eye,
+  Edit2,
   Edit3,
   X,
   AlertCircle,
@@ -41,6 +48,7 @@ import {
   Trash2,
   Sparkles,
   Layers,
+  FolderTree,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
@@ -48,8 +56,8 @@ export default function AdminDashboardPage() {
   const [token, setToken] = useState<string | null>(null);
   const [adminUser, setAdminUser] = useState<any>(null);
 
-  // Active Tab: "orders" or "products"
-  const [activeTab, setActiveTab] = useState<"orders" | "products">("orders");
+  // Active Tab: "orders" | "products" | "categories"
+  const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories">("orders");
 
   // Orders State
   const [stats, setStats] = useState<ApiAdminStats | null>(null);
@@ -63,6 +71,25 @@ export default function AdminDashboardPage() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
   const [productCategoryFilter, setProductCategoryFilter] = useState("all");
+
+  // Categories State
+  const [categories, setCategories] = useState<ApiCategoryItem[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [categorySearchQuery, setCategorySearchQuery] = useState("");
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [categoryMessage, setCategoryMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [categoryForm, setCategoryForm] = useState<{
+    name: string;
+    slug: string;
+    parent_id: number | null;
+    description: string;
+  }>({
+    name: "",
+    slug: "",
+    parent_id: null,
+    description: "",
+  });
 
   // Modal: Order Detail
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<ApiAdminOrderDetail | null>(null);
@@ -108,6 +135,39 @@ export default function AdminDashboardPage() {
   });
   const [creatingProduct, setCreatingProduct] = useState(false);
   const [productMessage, setProductMessage] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // Modal: Edit Product
+  const [isEditProductOpen, setIsEditProductOpen] = useState(false);
+  const [editProductId, setEditProductId] = useState<number | null>(null);
+  const [updatingProduct, setUpdatingProduct] = useState(false);
+  const [editProductMessage, setEditProductMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [editProductForm, setEditProductForm] = useState<{
+    title: string;
+    category_slug: string;
+    base_price_pkr: number;
+    sale_price_pkr?: number;
+    sku?: string;
+    stock_status: string;
+    is_featured: boolean;
+    has_prescription_support: boolean;
+    primary_image_url: string;
+    description: string;
+    short_description: string;
+    variations: Array<{ color_name: string; color_hex: string; price_pkr?: number }>;
+  }>({
+    title: "",
+    category_slug: "eye-glasses",
+    base_price_pkr: 2500,
+    sale_price_pkr: undefined,
+    sku: "",
+    stock_status: "instock",
+    is_featured: false,
+    has_prescription_support: true,
+    primary_image_url: "",
+    description: "",
+    short_description: "",
+    variations: [],
+  });
 
   // Authentication check
   useEffect(() => {
@@ -162,12 +222,28 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Load Categories
+  const loadCategoriesData = async () => {
+    setLoadingCategories(true);
+    try {
+      const data = await getCategories();
+      setCategories(data || []);
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
   useEffect(() => {
     if (token) {
+      loadCategoriesData();
       if (activeTab === "orders") {
         loadOrdersData(token);
-      } else {
+      } else if (activeTab === "products") {
         loadProductsData(token);
+      } else if (activeTab === "categories") {
+        loadCategoriesData();
       }
     }
   }, [token, activeTab, statusFilter, productCategoryFilter]);
@@ -314,6 +390,124 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleOpenEditProduct = async (productId: number) => {
+    if (!token) return;
+    setEditProductId(productId);
+    try {
+      const prod = await getAdminProduct(token, productId);
+      setEditProductForm({
+        title: prod.title || "",
+        category_slug: prod.primary_category?.slug || "eye-glasses",
+        base_price_pkr: prod.base_price_pkr || 2500,
+        sale_price_pkr: prod.sale_price_pkr || undefined,
+        sku: prod.sku || "",
+        stock_status: prod.stock_status || "instock",
+        is_featured: prod.is_featured || false,
+        has_prescription_support: prod.has_prescription_support ?? true,
+        primary_image_url: prod.primary_image?.url || "",
+        description: prod.description || "",
+        short_description: prod.short_description || "",
+        variations:
+          prod.variations && prod.variations.length > 0
+            ? prod.variations.map((v: any) => ({
+                color_name: v.color?.name || "Standard",
+                color_hex: v.color?.hex_code || "#000000",
+                price_pkr: v.price_pkr || prod.base_price_pkr,
+              }))
+            : [{ color_name: "Classic Black", color_hex: "#000000", price_pkr: prod.base_price_pkr }],
+      });
+      setIsEditProductOpen(true);
+    } catch (err: any) {
+      alert("Failed to load product details: " + err.message);
+    }
+  };
+
+  const handleUpdateProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !editProductId) return;
+    if (!editProductForm.title.trim()) {
+      alert("Product title is required.");
+      return;
+    }
+    setUpdatingProduct(true);
+    setEditProductMessage(null);
+
+    const payload: Partial<ApiAdminProductCreatePayload> = {
+      title: editProductForm.title.trim(),
+      category_slug: editProductForm.category_slug,
+      base_price_pkr: Number(editProductForm.base_price_pkr),
+      sale_price_pkr: editProductForm.sale_price_pkr ? Number(editProductForm.sale_price_pkr) : undefined,
+      sku: editProductForm.sku?.trim() || undefined,
+      stock_status: editProductForm.stock_status,
+      is_featured: editProductForm.is_featured,
+      has_prescription_support: editProductForm.has_prescription_support,
+      primary_image_url: editProductForm.primary_image_url.trim(),
+      description: editProductForm.description.trim(),
+      short_description: editProductForm.short_description.trim(),
+      variations: editProductForm.variations.map((v) => ({
+        color_name: v.color_name,
+        color_hex: v.color_hex,
+        price_pkr: v.price_pkr ? Number(v.price_pkr) : Number(editProductForm.base_price_pkr),
+      })),
+    };
+
+    try {
+      const res = await updateAdminProduct(token, editProductId, payload);
+      setEditProductMessage({ text: res.message || "Product updated successfully!", isError: false });
+      setTimeout(() => {
+        setIsEditProductOpen(false);
+        setEditProductMessage(null);
+        loadProductsData(token);
+      }, 1200);
+    } catch (err: any) {
+      setEditProductMessage({ text: err.message || "Failed to update product.", isError: true });
+    } finally {
+      setUpdatingProduct(false);
+    }
+  };
+
+  const handleCreateCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    if (!categoryForm.name.trim()) {
+      alert("Category name is required.");
+      return;
+    }
+    setCreatingCategory(true);
+    setCategoryMessage(null);
+
+    try {
+      await createCategory(token, {
+        name: categoryForm.name.trim(),
+        slug: categoryForm.slug?.trim() || undefined,
+        description: categoryForm.description?.trim() || undefined,
+        parent_id: categoryForm.parent_id || null,
+      });
+      setCategoryMessage({ text: "Category created successfully!", isError: false });
+      setTimeout(() => {
+        setIsAddCategoryOpen(false);
+        setCategoryMessage(null);
+        setCategoryForm({ name: "", slug: "", parent_id: null, description: "" });
+        loadCategoriesData();
+      }, 1000);
+    } catch (err: any) {
+      setCategoryMessage({ text: err.message || "Failed to create category.", isError: true });
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: number, name: string) => {
+    if (!token) return;
+    if (!confirm(`Are you sure you want to delete category '${name}'?`)) return;
+    try {
+      await deleteCategory(token, categoryId);
+      loadCategoriesData();
+    } catch (err: any) {
+      alert("Failed to delete category: " + err.message);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case "pending":
@@ -392,6 +586,21 @@ export default function AdminDashboardPage() {
                   {products.length || 17}
                 </span>
               </button>
+
+              <button
+                onClick={() => setActiveTab("categories")}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  activeTab === "categories"
+                    ? "bg-brand-primary text-white shadow-xs"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Tag className="w-3.5 h-3.5" />
+                <span>Categories</span>
+                <span className="ml-1 px-1.5 py-0.2 bg-slate-900/60 rounded text-[10px]">
+                  {categories.length || 27}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -434,6 +643,14 @@ export default function AdminDashboardPage() {
             }`}
           >
             Products ({products.length || 17})
+          </button>
+          <button
+            onClick={() => setActiveTab("categories")}
+            className={`flex-1 py-1.5 text-center text-xs font-bold rounded-lg ${
+              activeTab === "categories" ? "bg-brand-primary text-white" : "text-slate-400"
+            }`}
+          >
+            Categories ({categories.length || 27})
           </button>
         </div>
       </header>
@@ -824,6 +1041,13 @@ export default function AdminDashboardPage() {
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </Link>
                               <button
+                                onClick={() => handleOpenEditProduct(p.id)}
+                                title="Edit Product"
+                                className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
                                 onClick={() => handleDeleteProduct(p.id, p.title)}
                                 title="Delete Product"
                                 className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
@@ -834,6 +1058,144 @@ export default function AdminDashboardPage() {
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* =================================================================== */}
+        {/* TAB 3: CATEGORIES MANAGEMENT                                        */}
+        {/* =================================================================== */}
+        {activeTab === "categories" && (
+          <section className="space-y-6">
+            {/* Top Action Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+              <div>
+                <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-brand-primary" />
+                  <span>Product Categories Management</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Create new categories, organize frame styles, and manage store navigation taxonomy.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsAddCategoryOpen(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-hover text-white text-xs font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Category</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search categories by name or slug..."
+                  value={categorySearchQuery}
+                  onChange={(e) => setCategorySearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-300 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-primary"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => loadCategoriesData()}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                title="Refresh Categories"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingCategories ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+
+            {/* Categories Table */}
+            <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+              {loadingCategories ? (
+                <div className="py-20 text-center space-y-2">
+                  <RefreshCw className="w-6 h-6 text-brand-primary animate-spin mx-auto" />
+                  <p className="text-xs text-slate-500 font-semibold">Loading categories...</p>
+                </div>
+              ) : categories.length === 0 ? (
+                <div className="py-20 text-center space-y-3">
+                  <Tag className="w-10 h-10 text-slate-300 mx-auto" />
+                  <h3 className="text-sm font-bold text-slate-700">No Categories Found</h3>
+                  <p className="text-xs text-slate-400">Click &quot;Add New Category&quot; to create one.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50/80 border-b border-slate-200/80 text-slate-500 font-bold uppercase tracking-wider">
+                        <th className="py-3 px-4">ID</th>
+                        <th className="py-3 px-4">Category Name</th>
+                        <th className="py-3 px-4">Slug</th>
+                        <th className="py-3 px-4">Product Count</th>
+                        <th className="py-3 px-4">Parent Category</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {categories
+                        .filter(
+                          (c) =>
+                            !categorySearchQuery.trim() ||
+                            c.name.toLowerCase().includes(categorySearchQuery.toLowerCase()) ||
+                            c.slug.toLowerCase().includes(categorySearchQuery.toLowerCase())
+                        )
+                        .map((cat) => {
+                          const parentName = cat.parent_id
+                            ? categories.find((c) => c.id === cat.parent_id)?.name || `#${cat.parent_id}`
+                            : "None (Root)";
+                          return (
+                            <tr key={cat.id} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-3 px-4 font-mono font-semibold text-slate-400">
+                                {cat.id}
+                              </td>
+                              <td className="py-3 px-4 font-bold text-slate-900">
+                                {cat.name}
+                              </td>
+                              <td className="py-3 px-4 font-mono text-[11px] text-slate-500">
+                                /category/{cat.slug}
+                              </td>
+                              <td className="py-3 px-4 font-semibold text-slate-700">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                                  {cat.product_count} products
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-slate-500 text-[11px]">
+                                {parentName}
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Link
+                                    href={`/category/${cat.slug}`}
+                                    target="_blank"
+                                    title="View Category Page"
+                                    className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </Link>
+                                  <button
+                                    onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                                    title="Delete Category"
+                                    className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
@@ -912,11 +1274,21 @@ export default function AdminDashboardPage() {
                       }
                       className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
                     >
-                      <option value="eye-glasses">Eye Glasses</option>
-                      <option value="sunglasses">Sunglasses</option>
-                      <option value="reading-glasses">Reading Glasses</option>
-                      <option value="computer-glasses">Computer Glasses</option>
-                      <option value="contatc-lenses">Contact Lenses</option>
+                      {categories.length > 0 ? (
+                        categories.map((c) => (
+                          <option key={c.id} value={c.slug}>
+                            {c.name}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="eye-glasses">Eye Glasses</option>
+                          <option value="sunglasses">Sunglasses</option>
+                          <option value="reading-glasses">Reading Glasses</option>
+                          <option value="computer-glasses">Computer Glasses</option>
+                          <option value="contatc-lenses">Contact Lenses</option>
+                        </>
+                      )}
                     </select>
                   </div>
 
@@ -1155,6 +1527,394 @@ export default function AdminDashboardPage() {
       )}
 
       {/* =================================================================== */}
+      {/* MODAL: EDIT PRODUCT                                                 */}
+      {/* =================================================================== */}
+      {isEditProductOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                  <Edit3 className="w-6 h-6 text-brand-primary" />
+                  <span>Edit Product #{editProductId}</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Update optical frame specs, prices, variations, and catalog details.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsEditProductOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editProductMessage && (
+              <div
+                className={`p-4 rounded-xl text-xs font-bold ${
+                  editProductMessage.isError
+                    ? "bg-red-50 text-red-700 border border-red-200"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                }`}
+              >
+                {editProductMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateProductSubmit} className="space-y-6">
+              {/* Section 1: Basic Information */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5">
+                  1. Product Details
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Product Title *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editProductForm.title}
+                      onChange={(e) =>
+                        setEditProductForm({ ...editProductForm, title: e.target.value })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Category *
+                    </label>
+                    <select
+                      value={editProductForm.category_slug}
+                      onChange={(e) =>
+                        setEditProductForm({ ...editProductForm, category_slug: e.target.value })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                    >
+                      {categories.length > 0 ? (
+                        categories.map((c) => (
+                          <option key={c.id} value={c.slug}>
+                            {c.name}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="eye-glasses">Eye Glasses</option>
+                          <option value="sunglasses">Sunglasses</option>
+                          <option value="reading-glasses">Reading Glasses</option>
+                          <option value="computer-glasses">Computer Glasses</option>
+                          <option value="contatc-lenses">Contact Lenses</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      SKU Code
+                    </label>
+                    <input
+                      type="text"
+                      value={editProductForm.sku}
+                      onChange={(e) =>
+                        setEditProductForm({ ...editProductForm, sku: e.target.value })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Base Price (PKR) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={100}
+                      value={editProductForm.base_price_pkr}
+                      onChange={(e) =>
+                        setEditProductForm({
+                          ...editProductForm,
+                          base_price_pkr: Number(e.target.value),
+                        })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Sale Price (PKR) (Optional)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 1999 (Leave empty if no sale)"
+                      value={editProductForm.sale_price_pkr ?? ""}
+                      onChange={(e) =>
+                        setEditProductForm({
+                          ...editProductForm,
+                          sale_price_pkr: e.target.value ? Number(e.target.value) : undefined,
+                        })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Stock Status
+                    </label>
+                    <select
+                      value={editProductForm.stock_status}
+                      onChange={(e) =>
+                        setEditProductForm({ ...editProductForm, stock_status: e.target.value })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                    >
+                      <option value="instock">In Stock</option>
+                      <option value="outofstock">Out of Stock</option>
+                      <option value="onbackorder">Backorder</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2 flex flex-wrap gap-6 pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={editProductForm.has_prescription_support}
+                        onChange={(e) =>
+                          setEditProductForm({
+                            ...editProductForm,
+                            has_prescription_support: e.target.checked,
+                          })
+                        }
+                        className="rounded text-brand-primary focus:ring-brand-primary w-4 h-4"
+                      />
+                      <span>Supports Custom Optical Prescription Lenses</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={editProductForm.is_featured}
+                        onChange={(e) =>
+                          setEditProductForm({
+                            ...editProductForm,
+                            is_featured: e.target.checked,
+                          })
+                        }
+                        className="rounded text-brand-primary focus:ring-brand-primary w-4 h-4"
+                      />
+                      <span>Feature on Store Homepage</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Media & Image */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5">
+                  2. Primary Product Image (ImageKit CDN or URL)
+                </h4>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Image URL
+                  </label>
+                  <input
+                    type="url"
+                    value={editProductForm.primary_image_url}
+                    onChange={(e) =>
+                      setEditProductForm({ ...editProductForm, primary_image_url: e.target.value })
+                    }
+                    placeholder="https://ik.imagekit.io/ridaoptical/..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-mono"
+                  />
+                  {editProductForm.primary_image_url && (
+                    <div className="mt-2 w-16 h-16 rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+                      <img
+                        src={editProductForm.primary_image_url}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 3: Descriptions */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5">
+                  3. Description
+                </h4>
+
+                <div>
+                  <textarea
+                    rows={3}
+                    placeholder="Enter complete product specifications..."
+                    value={editProductForm.description}
+                    onChange={(e) =>
+                      setEditProductForm({ ...editProductForm, description: e.target.value })
+                    }
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditProductOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingProduct}
+                  className="px-6 py-2.5 rounded-xl bg-brand-primary text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-hover shadow-md transition-all disabled:opacity-50"
+                >
+                  {updatingProduct ? "Saving Changes..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL: ADD NEW CATEGORY                                             */}
+      {/* =================================================================== */}
+      {isAddCategoryOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                  <Tag className="w-6 h-6 text-brand-primary" />
+                  <span>Add New Product Category</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Create a new category for frames, sunglasses, or lenses.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAddCategoryOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {categoryMessage && (
+              <div
+                className={`p-4 rounded-xl text-xs font-bold ${
+                  categoryMessage.isError
+                    ? "bg-red-50 text-red-700 border border-red-200"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                }`}
+              >
+                {categoryMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateCategorySubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Polarized Sunglasses, Titanium Frames"
+                  value={categoryForm.name}
+                  onChange={(e) =>
+                    setCategoryForm({ ...categoryForm, name: e.target.value })
+                  }
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Category Slug (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Auto-generated from name if empty"
+                  value={categoryForm.slug}
+                  onChange={(e) =>
+                    setCategoryForm({ ...categoryForm, slug: e.target.value })
+                  }
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Parent Category (Optional)
+                </label>
+                <select
+                  value={categoryForm.parent_id ?? ""}
+                  onChange={(e) =>
+                    setCategoryForm({
+                      ...categoryForm,
+                      parent_id: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                >
+                  <option value="">None (Top-Level Category)</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Description (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Brief description of this category for store SEO..."
+                  value={categoryForm.description}
+                  onChange={(e) =>
+                    setCategoryForm({ ...categoryForm, description: e.target.value })
+                  }
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddCategoryOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingCategory}
+                  className="px-6 py-2.5 rounded-xl bg-brand-primary text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-hover shadow-md transition-all disabled:opacity-50"
+                >
+                  {creatingCategory ? "Creating Category..." : "Create Category"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
       {/* MODAL: ORDER DETAIL                                                 */}
       {/* =================================================================== */}
       {selectedOrderDetail && (
@@ -1349,6 +2109,394 @@ export default function AdminDashboardPage() {
                   className="px-5 py-2 rounded-xl bg-brand-primary text-white text-xs font-bold hover:bg-brand-hover transition-colors disabled:opacity-50"
                 >
                   {updatingStatus ? "Saving..." : "Save Status"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL: EDIT PRODUCT                                                 */}
+      {/* =================================================================== */}
+      {isEditProductOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                  <Edit3 className="w-6 h-6 text-brand-primary" />
+                  <span>Edit Product #{editProductId}</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Update optical frame specs, prices, variations, and catalog details.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsEditProductOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editProductMessage && (
+              <div
+                className={`p-4 rounded-xl text-xs font-bold ${
+                  editProductMessage.isError
+                    ? "bg-red-50 text-red-700 border border-red-200"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                }`}
+              >
+                {editProductMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateProductSubmit} className="space-y-6">
+              {/* Section 1: Basic Information */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5">
+                  1. Product Details
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Product Title *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editProductForm.title}
+                      onChange={(e) =>
+                        setEditProductForm({ ...editProductForm, title: e.target.value })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Category *
+                    </label>
+                    <select
+                      value={editProductForm.category_slug}
+                      onChange={(e) =>
+                        setEditProductForm({ ...editProductForm, category_slug: e.target.value })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                    >
+                      {categories.length > 0 ? (
+                        categories.map((c) => (
+                          <option key={c.id} value={c.slug}>
+                            {c.name}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="eye-glasses">Eye Glasses</option>
+                          <option value="sunglasses">Sunglasses</option>
+                          <option value="reading-glasses">Reading Glasses</option>
+                          <option value="computer-glasses">Computer Glasses</option>
+                          <option value="contatc-lenses">Contact Lenses</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      SKU Code
+                    </label>
+                    <input
+                      type="text"
+                      value={editProductForm.sku}
+                      onChange={(e) =>
+                        setEditProductForm({ ...editProductForm, sku: e.target.value })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Base Price (PKR) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min={100}
+                      value={editProductForm.base_price_pkr}
+                      onChange={(e) =>
+                        setEditProductForm({
+                          ...editProductForm,
+                          base_price_pkr: Number(e.target.value),
+                        })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Sale Price (PKR) (Optional)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 1999 (Leave empty if no sale)"
+                      value={editProductForm.sale_price_pkr ?? ""}
+                      onChange={(e) =>
+                        setEditProductForm({
+                          ...editProductForm,
+                          sale_price_pkr: e.target.value ? Number(e.target.value) : undefined,
+                        })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Stock Status
+                    </label>
+                    <select
+                      value={editProductForm.stock_status}
+                      onChange={(e) =>
+                        setEditProductForm({ ...editProductForm, stock_status: e.target.value })
+                      }
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                    >
+                      <option value="instock">In Stock</option>
+                      <option value="outofstock">Out of Stock</option>
+                      <option value="onbackorder">Backorder</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2 flex flex-wrap gap-6 pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={editProductForm.has_prescription_support}
+                        onChange={(e) =>
+                          setEditProductForm({
+                            ...editProductForm,
+                            has_prescription_support: e.target.checked,
+                          })
+                        }
+                        className="rounded text-brand-primary focus:ring-brand-primary w-4 h-4"
+                      />
+                      <span>Supports Custom Optical Prescription Lenses</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={editProductForm.is_featured}
+                        onChange={(e) =>
+                          setEditProductForm({
+                            ...editProductForm,
+                            is_featured: e.target.checked,
+                          })
+                        }
+                        className="rounded text-brand-primary focus:ring-brand-primary w-4 h-4"
+                      />
+                      <span>Feature on Store Homepage</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Media & Image */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5">
+                  2. Primary Product Image (ImageKit CDN or URL)
+                </h4>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Image URL
+                  </label>
+                  <input
+                    type="url"
+                    value={editProductForm.primary_image_url}
+                    onChange={(e) =>
+                      setEditProductForm({ ...editProductForm, primary_image_url: e.target.value })
+                    }
+                    placeholder="https://ik.imagekit.io/ridaoptical/..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-mono"
+                  />
+                  {editProductForm.primary_image_url && (
+                    <div className="mt-2 w-16 h-16 rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+                      <img
+                        src={editProductForm.primary_image_url}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 3: Descriptions */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5">
+                  3. Description
+                </h4>
+
+                <div>
+                  <textarea
+                    rows={3}
+                    placeholder="Enter complete product specifications..."
+                    value={editProductForm.description}
+                    onChange={(e) =>
+                      setEditProductForm({ ...editProductForm, description: e.target.value })
+                    }
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditProductOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingProduct}
+                  className="px-6 py-2.5 rounded-xl bg-brand-primary text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-hover shadow-md transition-all disabled:opacity-50"
+                >
+                  {updatingProduct ? "Saving Changes..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL: ADD NEW CATEGORY                                             */}
+      {/* =================================================================== */}
+      {isAddCategoryOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                  <Tag className="w-6 h-6 text-brand-primary" />
+                  <span>Add New Product Category</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Create a new category for frames, sunglasses, or lenses.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAddCategoryOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {categoryMessage && (
+              <div
+                className={`p-4 rounded-xl text-xs font-bold ${
+                  categoryMessage.isError
+                    ? "bg-red-50 text-red-700 border border-red-200"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                }`}
+              >
+                {categoryMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateCategorySubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Polarized Sunglasses, Titanium Frames"
+                  value={categoryForm.name}
+                  onChange={(e) =>
+                    setCategoryForm({ ...categoryForm, name: e.target.value })
+                  }
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Category Slug (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Auto-generated from name if empty"
+                  value={categoryForm.slug}
+                  onChange={(e) =>
+                    setCategoryForm({ ...categoryForm, slug: e.target.value })
+                  }
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Parent Category (Optional)
+                </label>
+                <select
+                  value={categoryForm.parent_id ?? ""}
+                  onChange={(e) =>
+                    setCategoryForm({
+                      ...categoryForm,
+                      parent_id: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary font-semibold"
+                >
+                  <option value="">None (Top-Level Category)</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Description (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Brief description of this category for store SEO..."
+                  value={categoryForm.description}
+                  onChange={(e) =>
+                    setCategoryForm({ ...categoryForm, description: e.target.value })
+                  }
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-brand-primary"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddCategoryOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingCategory}
+                  className="px-6 py-2.5 rounded-xl bg-brand-primary text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-hover shadow-md transition-all disabled:opacity-50"
+                >
+                  {creatingCategory ? "Creating Category..." : "Create Category"}
                 </button>
               </div>
             </form>
