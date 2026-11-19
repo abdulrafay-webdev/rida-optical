@@ -6,8 +6,10 @@ from app.core.config import settings
 def get_database_url() -> str:
     url = settings.DATABASE_URL
     if not url:
-        # Default development fallback database
-        return "sqlite:///./rida_optical_dev.db"
+        # On Vercel serverless / read-only filesystem, use /tmp or memory
+        import tempfile
+        tmp_db = Path(tempfile.gettempdir()) / "rida_optical_dev.db"
+        return f"sqlite:///{tmp_db}"
 
     # Strip channel_binding if present (causes issues with connection poolers & older libpq on serverless)
     if "channel_binding=" in url:

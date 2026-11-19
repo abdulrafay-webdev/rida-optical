@@ -24,15 +24,15 @@ class DataRepository:
         self._load_data()
 
     def _get_data_dir(self) -> Path:
-        # Check backend/data/ first
-        candidate_1 = Path(__file__).resolve().parent.parent.parent / "data"
-        if candidate_1.exists():
-            return candidate_1
-        # Fallback to extracted/
-        candidate_2 = Path(__file__).resolve().parent.parent.parent.parent / "extracted"
-        if candidate_2.exists():
-            return candidate_2
-        return candidate_1
+        here = Path(__file__).resolve().parent
+        for candidate in [
+            here.parent.parent / "data",
+            here.parent.parent.parent / "backend" / "data",
+            here.parent.parent.parent / "data",
+        ]:
+            if candidate.exists() and (candidate / "products.json").exists():
+                return candidate
+        return here.parent.parent / "data"
 
     def _load_data(self):
         data_dir = self._get_data_dir()
