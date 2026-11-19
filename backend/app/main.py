@@ -1,4 +1,12 @@
-from fastapi import FastAPI
+import sys
+from pathlib import Path
+
+# Ensure root directory is in sys.path so 'app' package is always resolvable
+_ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(_ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_ROOT_DIR))
+
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
@@ -28,6 +36,11 @@ app.add_middleware(
 # Mount under /api/v1 as canonical path, and also /api for convenience
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(api_router, prefix="/api")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
 
 
 @app.get("/", summary="Root API Information")

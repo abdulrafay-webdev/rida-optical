@@ -9,6 +9,13 @@ def get_database_url() -> str:
         # Default development fallback database
         return "sqlite:///./rida_optical_dev.db"
 
+    # Strip channel_binding if present (causes issues with connection poolers & older libpq on serverless)
+    if "channel_binding=" in url:
+        import re
+        url = re.sub(r"[?&]channel_binding=[^&]+", "", url)
+        if "?" not in url and "&" in url:
+            url = url.replace("&", "?", 1)
+
     # Normalize Heroku/Neon legacy prefix if present
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql+psycopg://", 1)
